@@ -40,11 +40,20 @@ def get_hora(time):
     HORA_INICIO = 9
     return str(math.floor(time / 60) + HORA_INICIO) + ":" + mins(time % 60)
 
+def encontrar_minimo(lista):
+  minimo = lista[0]
+  for elemento in lista:
+    if elemento < minimo:
+      minimo = elemento
+  return minimo
 #CONTROL
-print("Inserte cant lavados en mins")
-INTERVALO_LAVADOS = int(input()) # 30 o 60
-print("Inserte cant tazas totales en unidades")
-TAZAS_TOTALES = int(input()) # 10 o 15
+# print("Inserte intervalo de lavados en mins")
+# INTERVALO_LAVADOS = int(input()) # 30 o 60
+# print("Inserte cant tazas totales en unidades")
+# TAZAS_TOTALES = int(input()) # 10 o 15
+INTERVALO_LAVADOS = 30
+TAZAS_TOTALES  = 15
+
 
 #ESTADO
 TAZAS_SUCIAS = 0
@@ -59,14 +68,17 @@ RETIRADOS = 0
 PEDIDOS_TOTALES = 0
 HV = 5000000
 
-#TEF
-TPPC = 0 # 9:00 # tiempo prox pedido cliente
-TPTS = 0 # 9:00 # tiempo prox taza sucia
-TPL = INTERVALO_LAVADOS # 9:00 # tiempo prox lavado
-
 #TIEMPOS
 T = 0 # 9:00
 TF  = 60 * 3  # 12:00
+
+#TEF
+TPPC = 0 # 9:00 # tiempo prox pedido cliente
+TPTS = HV # 9:00 # tiempo prox taza sucia
+TPL = INTERVALO_LAVADOS # 9:00 # tiempo prox lavado
+
+
+LISTA_TPTS = list()
 
 
 def procesar_sgte_lavado():
@@ -82,33 +94,44 @@ def procesar_sgte_lavado():
 
         
 def procesar_sgte_taza_sucia():
-    global TAZAS_SUCIAS, TPTS
+    global TAZAS_SUCIAS, LISTA_TPTS, TPTS
+    #, TPTS
     T = TPTS
-    TPTS = T + get_tiempo_consumo()
-    print("\033[4;32mEntrega de taza sucia")
-    TAZAS_SUCIAS = TAZAS_SUCIAS + 1 
+    # TPTS = T + get_tiempo_consumo()
+    print("\033[4;32mEntrega de taza sucia {time}".format(time = get_hora(T)))
+    LISTA_TPTS.remove(TPTS)
+    TAZAS_SUCIAS = TAZAS_SUCIAS + 1
+    TPTS = min_or_HV() 
 
 def procesar_sgte_pedido():
-    global TPPC, TAZAS_SUCIAS, TAZAS_DISPONIBLES, T, RETIRADOS, PEDIDOS_TOTALES, LAVADOS_FORZOSOS
+    global TPPC, TAZAS_SUCIAS, TAZAS_DISPONIBLES, T, RETIRADOS, PEDIDOS_TOTALES, LAVADOS_FORZOSOS, LISTA_TPTS
     T = TPPC
     TPPC =  T + get_intervalo_pedidos()
     if(TAZAS_DISPONIBLES > 0):
         TAZAS_DISPONIBLES = TAZAS_DISPONIBLES - 1
     else:
-        if(TAZAS_SUCIAS > 0): #lavo
+        if(TAZAS_SUCIAS == 0): #lavo
             LAVADOS_FORZOSOS = LAVADOS_FORZOSOS + 1 
             TAZAS_DISPONIBLES = TAZAS_SUCIAS - 1
             TAZAS_SUCIAS = 0 
         else: 
             RETIRADOS = RETIRADOS + 1 
     PEDIDOS_TOTALES = PEDIDOS_TOTALES + 1
+    LISTA_TPTS.append(T + get_tiempo_consumo())
     print("Cliente nro:{nro} hora: {hora}".format(nro = PEDIDOS_TOTALES,hora= get_hora(T)))
  
-
+def min_or_HV():
+    global TPTS, LISTA_TPTS, HV
+    if (len(LISTA_TPTS) > 0):
+        return  min(LISTA_TPTS)
+    else: 
+        return HV 
 
 # -------------------- INICIO SIMULACION ------------------------------------
 
+
 while(T <= TF):
+    TPTS = min_or_HV()
     if(TPPC <= TPTS):
         if(TPPC <= TPL):
             procesar_sgte_pedido()
