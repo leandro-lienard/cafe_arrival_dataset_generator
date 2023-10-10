@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 import random
 from scipy import stats
-import numpy as np
 import math
 from colorama import init
 init(autoreset=True) 
