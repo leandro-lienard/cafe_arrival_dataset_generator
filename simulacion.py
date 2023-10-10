@@ -1,6 +1,11 @@
 from datetime import datetime, timedelta
 import random
-import pandas as pd 
+from scipy import stats
+import numpy as np
+import math
+from colorama import init
+init(autoreset=True) 
+
 
 global TPL
 
@@ -20,12 +25,26 @@ FIN = datetime(2023, 9, 14, 20, 0, 0)
 
 
 #DATOS
-TIEMPO_CONSUMO = 5  # TODO: USAR RANDOM
-INTERVALO_PEDIDOS = 10 # TODO: USAR RANDOM
+def get_tiempo_consumo():
+    return round(stats.beta.ppf(random.random(), 0.8809684438295433, 0.8900744283854006, loc= 24.996392045937338, scale= 15.003607954062664))
+    
+def get_intervalo_pedidos():
+    return round(stats.ncx2.ppf(random.random(), 1.1816142004691113, 2.4431224769406272, loc=-1.2287936235425389e-28, scale=3.8059527763528824))
+    
+def mins(mins):
+    if(mins < 10):
+        return '0' + str(mins)
+    else:
+        return str(mins)
+def get_hora(time):
+    HORA_INICIO = 9
+    return str(math.floor(time / 60) + HORA_INICIO) + ":" + mins(time % 60)
 
 #CONTROL
-INTERVALO_LAVADOS = 30
-TAZAS_TOTALES = 15
+print("Inserte cant lavados en mins")
+INTERVALO_LAVADOS = int(input()) # 30 o 60
+print("Inserte cant tazas totales en unidades")
+TAZAS_TOTALES = int(input()) # 10 o 15
 
 #ESTADO
 TAZAS_SUCIAS = 0
@@ -41,35 +60,38 @@ PEDIDOS_TOTALES = 0
 HV = 5000000
 
 #TEF
-TPPC = datetime(2023, 9, 14, 9, 0, 0) # 9:00 # tiempo prox pedido cliente
-TPTS = datetime(2023, 9, 14, 9, 0, 0) # 9:00 # tiempo prox taza sucia
-TPL = datetime(2023, 9, 14, 9, 0, 0) # 9:00 # tiempo prox lavado
+TPPC = 0 # 9:00 # tiempo prox pedido cliente
+TPTS = 0 # 9:00 # tiempo prox taza sucia
+TPL = INTERVALO_LAVADOS # 9:00 # tiempo prox lavado
 
 #TIEMPOS
-T = datetime(2023, 9, 14, 9, 0, 0) # 9:00
-TF  = datetime(2023, 9, 14, 12, 0, 0) # 12:00
+T = 0 # 9:00
+TF  = 60 * 3  # 12:00
 
 
 def procesar_sgte_lavado():
-    global TPL, TAZAS_SUCIAS, LAVADOS_INNECESARIOS, TAZAS_DISPONIBLES
+    global TPL, TAZAS_SUCIAS, LAVADOS_INNECESARIOS, TAZAS_DISPONIBLES, INTERVALO_LAVADOS
     T = TPL
-    TPL = T + timedelta(minutes=INTERVALO_LAVADOS)
+    TPL = T + INTERVALO_LAVADOS
+    print("\033[4;35m"+ "LAVADO TS={ts}, TD={td} hora: {hora}".format(ts = TAZAS_SUCIAS, td = TAZAS_DISPONIBLES, hora= get_hora(T)))
     if(TAZAS_SUCIAS > 0):
-        LAVADOS_INNECESARIOS = LAVADOS_INNECESARIOS + 1
-    else: 
         TAZAS_DISPONIBLES = TAZAS_DISPONIBLES + TAZAS_SUCIAS
         TAZAS_SUCIAS = 0
+    else: 
+        LAVADOS_INNECESARIOS = LAVADOS_INNECESARIOS + 1
+
         
 def procesar_sgte_taza_sucia():
-    global TAZAS_SUCIAS, TPTS, TIEMPO_CONSUMO
+    global TAZAS_SUCIAS, TPTS
     T = TPTS
-    TPTS = T + timedelta(minutes=TIEMPO_CONSUMO) # TODO: USAR RANDOM TC
+    TPTS = T + get_tiempo_consumo()
+    print("\033[4;32mEntrega de taza sucia")
     TAZAS_SUCIAS = TAZAS_SUCIAS + 1 
 
 def procesar_sgte_pedido():
-    global TPPC, TAZAS_SUCIAS, INTERVALO_PEDIDOS, TAZAS_DISPONIBLES, T, RETIRADOS, PEDIDOS_TOTALES, LAVADOS_FORZOSOS
+    global TPPC, TAZAS_SUCIAS, TAZAS_DISPONIBLES, T, RETIRADOS, PEDIDOS_TOTALES, LAVADOS_FORZOSOS
     T = TPPC
-    TPPC =  T + timedelta(minutes=INTERVALO_PEDIDOS) #TODO: USAR RANDOM IP
+    TPPC =  T + get_intervalo_pedidos()
     if(TAZAS_DISPONIBLES > 0):
         TAZAS_DISPONIBLES = TAZAS_DISPONIBLES - 1
     else:
@@ -79,7 +101,9 @@ def procesar_sgte_pedido():
             TAZAS_SUCIAS = 0 
         else: 
             RETIRADOS = RETIRADOS + 1 
-    PEDIDOS_TOTALES = PEDIDOS_TOTALES +1 
+    PEDIDOS_TOTALES = PEDIDOS_TOTALES + 1
+    print("Cliente nro:{nro} hora: {hora}".format(nro = PEDIDOS_TOTALES,hora= get_hora(T)))
+ 
 
 
 # -------------------- INICIO SIMULACION ------------------------------------
@@ -105,7 +129,7 @@ print("--------------------SUMMARY-------------------")
 print("")
        
 print("Con tazas totales:", TAZAS_TOTALES)
-print("y intervalo lavados:", INTERVALO_PEDIDOS)
+print("y intervalo lavados:", INTERVALO_LAVADOS)
 print("Promedio lavados innecesarios(PLI) ", PLI, " esta mal calculado deberia hacerse contra lavados totales")
 print("Promedio lavado Forzosos (PLF) ", PLF, " esta mal calculado deberia hacerse contra lavados totales")
 print("Promedio retirado (RT) ", PR)
