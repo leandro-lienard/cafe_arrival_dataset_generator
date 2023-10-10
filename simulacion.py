@@ -47,12 +47,12 @@ def encontrar_minimo(lista):
       minimo = elemento
   return minimo
 #CONTROL
-# print("Inserte intervalo de lavados en mins")
-# INTERVALO_LAVADOS = int(input()) # 30 o 60
-# print("Inserte cant tazas totales en unidades")
-# TAZAS_TOTALES = int(input()) # 10 o 15
-INTERVALO_LAVADOS = 30
-TAZAS_TOTALES  = 15
+print("Inserte intervalo de lavados en mins")
+INTERVALO_LAVADOS = int(input()) # 30 o 60
+print("Inserte cant tazas totales en unidades")
+TAZAS_TOTALES = int(input()) # 10 o 15
+# INTERVALO_LAVADOS = 60
+# TAZAS_TOTALES  = 5
 
 
 #ESTADO
@@ -65,9 +65,9 @@ LAVADOS_FORZOSOS  = 0
 RETIRADOS = 0
 
 #OTROS
-PEDIDOS_TOTALES = 0
 HV = 5000000
-
+PEDIDOS_TOTALES = 0
+LAVADOS_TOTALES = 0
 #TIEMPOS
 T = 0 # 9:00
 TF  = 60 * 3  # 12:00
@@ -82,47 +82,51 @@ LISTA_TPTS = list()
 
 
 def procesar_sgte_lavado():
-    global TPL, TAZAS_SUCIAS, LAVADOS_INNECESARIOS, TAZAS_DISPONIBLES, INTERVALO_LAVADOS
+    global TPL, TAZAS_SUCIAS, LAVADOS_INNECESARIOS, TAZAS_DISPONIBLES, INTERVALO_LAVADOS, LAVADOS_TOTALES
     T = TPL
     TPL = T + INTERVALO_LAVADOS
-    print("\033[4;35m"+ "LAVADO TS={ts}, TD={td} hora: {hora}".format(ts = TAZAS_SUCIAS, td = TAZAS_DISPONIBLES, hora= get_hora(T)))
+    print("\033[4;34m"+ "TS={ts}, TD={td} LAVADO hora: {hora}".format(ts = TAZAS_SUCIAS, td = TAZAS_DISPONIBLES, hora= get_hora(T)))
     if(TAZAS_SUCIAS > 0):
         TAZAS_DISPONIBLES = TAZAS_DISPONIBLES + TAZAS_SUCIAS
         TAZAS_SUCIAS = 0
     else: 
         LAVADOS_INNECESARIOS = LAVADOS_INNECESARIOS + 1
 
+    LAVADOS_TOTALES = LAVADOS_TOTALES +1 
         
 def procesar_sgte_taza_sucia():
-    global TAZAS_SUCIAS, LISTA_TPTS, TPTS
+    global TAZAS_SUCIAS, LISTA_TPTS, TPTS, TAZAS_DISPONIBLES
     #, TPTS
     T = TPTS
     # TPTS = T + get_tiempo_consumo()
-    print("\033[4;32mEntrega de taza sucia {time}".format(time = get_hora(T)))
     LISTA_TPTS.remove(TPTS)
     TAZAS_SUCIAS = TAZAS_SUCIAS + 1
+    print("\033[4;32mTS={ts}, TD={td} Entrega de taza sucia {time}".format(ts=TAZAS_SUCIAS, td=TAZAS_DISPONIBLES, time = get_hora(T)))
     TPTS = min_or_HV() 
 
 def procesar_sgte_pedido():
-    global TPPC, TAZAS_SUCIAS, TAZAS_DISPONIBLES, T, RETIRADOS, PEDIDOS_TOTALES, LAVADOS_FORZOSOS, LISTA_TPTS
+    global TPPC, TAZAS_SUCIAS, TAZAS_DISPONIBLES, T, RETIRADOS, PEDIDOS_TOTALES, LAVADOS_FORZOSOS, LISTA_TPTS, LAVADOS_TOTALES 
     T = TPPC
     TPPC =  T + get_intervalo_pedidos()
+    PEDIDOS_TOTALES = PEDIDOS_TOTALES + 1
     if(TAZAS_DISPONIBLES > 0):
         TAZAS_DISPONIBLES = TAZAS_DISPONIBLES - 1
     else:
-        if(TAZAS_SUCIAS == 0): #lavo
-            LAVADOS_FORZOSOS = LAVADOS_FORZOSOS + 1 
+        if(TAZAS_SUCIAS > 0): #lavo
+            print("\033[4;33mLAVADO FORZOSO por falta de tazas disponibles {time}".format(time= get_hora(T)))
+            LAVADOS_FORZOSOS = LAVADOS_FORZOSOS + 1
+            LAVADOS_TOTALES = LAVADOS_TOTALES + 1  
             TAZAS_DISPONIBLES = TAZAS_SUCIAS - 1
             TAZAS_SUCIAS = 0 
         else: 
+            print("\033[4;31mRETIRADO por falta de tazas sucias y disponibles")
             RETIRADOS = RETIRADOS + 1 
-    PEDIDOS_TOTALES = PEDIDOS_TOTALES + 1
     LISTA_TPTS.append(T + get_tiempo_consumo())
-    print("Cliente nro:{nro} hora: {hora}".format(nro = PEDIDOS_TOTALES,hora= get_hora(T)))
+    print("TS={ts}, TD={td} Cliente nro:{nro} hora: {hora}".format(nro = PEDIDOS_TOTALES,hora= get_hora(T), ts = TAZAS_SUCIAS, td = TAZAS_DISPONIBLES))
  
 def min_or_HV():
     global TPTS, LISTA_TPTS, HV
-    if (len(LISTA_TPTS) > 0):
+    if(len(LISTA_TPTS) > 0):
         return  min(LISTA_TPTS)
     else: 
         return HV 
@@ -141,10 +145,10 @@ while(T <= TF):
         if(TPL <= TPTS):
             procesar_sgte_lavado()
         else: 
-            procesar_sgte_taza_sucia() 
+            procesar_sgte_taza_sucia()
 
-PLI = (LAVADOS_INNECESARIOS/PEDIDOS_TOTALES) * 100
-PLF = (LAVADOS_FORZOSOS/PEDIDOS_TOTALES) * 100
+PLI = (LAVADOS_INNECESARIOS/LAVADOS_TOTALES) * 100
+PLF = (LAVADOS_FORZOSOS/LAVADOS_TOTALES) * 100
 PR = (RETIRADOS/PEDIDOS_TOTALES) * 100
 
 print("")
@@ -153,9 +157,9 @@ print("")
        
 print("Con tazas totales:", TAZAS_TOTALES)
 print("y intervalo lavados:", INTERVALO_LAVADOS)
-print("Promedio lavados innecesarios(PLI) ", PLI, " esta mal calculado deberia hacerse contra lavados totales")
-print("Promedio lavado Forzosos (PLF) ", PLF, " esta mal calculado deberia hacerse contra lavados totales")
-print("Promedio retirado (RT) ", PR)
+print("Promedio lavados innecesarios(PLI) ", PLI, "%")
+print("Promedio lavado Forzosos (PLF) ", PLF,  "%")
+print("Promedio retirado (RT) ", PR, "%")
     
     
 
